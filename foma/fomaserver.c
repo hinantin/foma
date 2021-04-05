@@ -166,7 +166,7 @@ int main(int argc, char *argv[]) {
                 byte_count = recv(connfd, sendBuff, 16384, 0);
                 if (byte_count < 0) {
                   perror("ERROR reading from socket");
-                  exit(1);
+                  return EXIT_FAILURE;
                 } else {
                   sendBuff[byte_count] = '\0';
                   char *line = concat(sendBuff, "");
