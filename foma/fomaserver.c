@@ -180,7 +180,7 @@ int main(int argc, char *argv[]) {
             } while (byte_count > 0);
             //exit(0);
         //} else {
-        //    close(connfd);
+        close(connfd);
         //}
 
     }
