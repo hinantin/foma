@@ -212,9 +212,12 @@ int fsm_destroy(struct fsm *net) {
 }
 
 struct fsm *fsm_create (char *name) {
+  if (strlen(name) > FSM_NAME_LEN) {
+    printf("Network name '%s' should consist of at most %d characters.\n", name, FSM_NAME_LEN);
+  }
   struct fsm *fsm;
   fsm = xxmalloc(sizeof(struct fsm));
-  strcpy(fsm->name, name);
+  strncpy(fsm->name, name, FSM_NAME_LEN);
   fsm->arity = 1;
   fsm->arccount = 0;
   fsm->is_deterministic = NO;
@@ -305,13 +308,15 @@ int fsm_isuniversal(struct fsm *net) {
 }
 
 int fsm_isempty(struct fsm *net) {
-    struct fsm_state *fsm;
-    net = fsm_minimize(net);
-    fsm = net->states;
+    int result;
+    struct fsm *minimal = fsm_minimize(fsm_copy(net));
+    struct fsm_state *fsm = minimal->states;
     if (fsm->target == -1 && fsm->final_state == 0 && (fsm+1)->state_no == -1)
-        return 1;
+        result = 1;
     else 
-        return 0;
+        result = 0;
+    fsm_destroy(minimal);
+    return result;
 }
 
 int fsm_issequential(struct fsm *net) {
@@ -355,7 +360,10 @@ int fsm_issequential(struct fsm *net) {
 }
 
 int fsm_isfunctional(struct fsm *net) {
-    return(fsm_isidentity(fsm_minimize(fsm_compose(fsm_invert(fsm_copy(net)),fsm_copy(net)))));
+    struct fsm *tmp = fsm_minimize(fsm_compose(fsm_invert(fsm_copy(net)),fsm_copy(net)));
+    int result = fsm_isidentity(tmp);
+    fsm_destroy(tmp);
+    return result;
 }
 
 int fsm_isunambiguous(struct fsm *net) {
@@ -416,15 +424,16 @@ int fsm_isidentity(struct fsm *net) {
     struct state_array *state_array;
     struct fsm_state *curr_ptr;
     int i, j, v, vp, num_states, factor = 0, newlength = 1, startfrom;
-    short int in, out, *newstring;
+    short int in, out, *newstring = NULL;
     struct discrepancy *discrepancy, *currd, *targetd;
+    struct fsm *tmp;
 
-    fsm_minimize(net);
-    fsm_count(net);
+    tmp = fsm_minimize(fsm_copy(net));
+    fsm_count(tmp);
     
-    num_states = net->statecount;
+    num_states = tmp->statecount;
     discrepancy = xxcalloc(num_states,sizeof(struct discrepancy));
-    state_array = map_firstlines(net);
+    state_array = map_firstlines(tmp);
     ptr_stack_clear();
     ptr_stack_push(state_array->transitions);
 
@@ -483,6 +492,10 @@ int fsm_isidentity(struct fsm *net) {
             startfrom = 0;
         }
 
+        if (newstring != NULL) {
+            xxfree(newstring);
+            newstring = NULL;
+        }
         newstring = xxcalloc(abs(newlength),sizeof(int));
 
         for (i = startfrom, j = 0; i < abs(currd->length); i++, j++) {
@@ -528,11 +541,17 @@ int fsm_isidentity(struct fsm *net) {
     }
     xxfree(state_array);
     xxfree(discrepancy);
+    fsm_destroy(tmp);
+    if (newstring != NULL)
+        xxfree(newstring);
     return 1;
  fail:
     xxfree(state_array);
     xxfree(discrepancy);
     ptr_stack_clear();
+    fsm_destroy(tmp);
+    if (newstring != NULL)
+        xxfree(newstring);
     return 0;
 }
 

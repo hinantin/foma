@@ -572,7 +572,11 @@ int save_defined(struct defined_networks *def, char *filename) {
     }
     printf("Writing definitions to file %s.\n", filename);
     for (d = def; d != NULL; d = d->next) {
-        strcpy(d->net->name, d->name);
+        if (!d->net) {
+            printf("Skipping definition without network.\n");
+            continue;
+        }
+        strncpy(d->net->name, d->name, FSM_NAME_LEN);
         foma_net_print(d->net, outfile);
     }
     gzclose(outfile);
@@ -701,7 +705,7 @@ struct fsm *io_net_read(struct io_buf_handle *iobh, char **net_name) {
     io_gets(iobh, buf);
     extras = 0;
     sscanf(buf, "%i %i %i %i %i %lld %i %i %i %i %i %i %s", &net->arity, &net->arccount, &net->statecount, &net->linecount, &net->finalcount, &net->pathcount, &net->is_deterministic, &net->is_pruned, &net->is_minimized, &net->is_epsilon_free, &net->is_loop_free, &extras, buf);
-    strcpy(net->name, buf);
+    strncpy(net->name, buf, FSM_NAME_LEN);
     *net_name = xxstrdup(buf);
     io_gets(iobh, buf);
 
@@ -983,10 +987,36 @@ size_t io_gz_file_to_mem(struct io_buf_handle *iobh, char *filename) {
     return(size);
 }
 
+typedef struct BOM {
+    char code[4];
+    int len;
+    char* name;
+} BOM;
+
+static BOM BOM_codes[] = {
+    { { 0xEF, 0xBB, 0xBF }, 3, "UTF-8"},
+    { { 0xFF, 0xFE, 0x00, 0x00 }, 4, "UTF-32LE" },
+    { { 0x00, 0x00, 0xFE, 0xFF }, 4, "UTF-32BE" },
+    { { 0xFF, 0xFE }, 2, "UTF16-LE" },
+    { { 0xFE, 0xFF }, 2, "UTF16-BE" },
+    { NULL, 0, NULL },
+};
+
+BOM *check_BOM(char *buffer) {
+    BOM *bom;
+    for(bom = BOM_codes; bom->len; bom++) {
+        if(strncmp(bom->code, buffer, bom->len) == 0) {
+            return bom;
+        }
+    }
+    return NULL;
+}
+
 char *file_to_mem(char *name) {
     FILE    *infile;
     size_t    numbytes;
     char *buffer;
+    BOM  *bom;
     infile = fopen(name, "r");
     if(infile == NULL) {
         printf("Error opening file '%s'\n",name);
@@ -1002,6 +1032,12 @@ char *file_to_mem(char *name) {
     }
     if (fread(buffer, sizeof(char), numbytes, infile) != numbytes) {
         printf("Error reading file '%s'\n",name);
+        return NULL;
+    }
+
+    bom = check_BOM(buffer);
+    if (bom != NULL) {
+        printf("%s BOM mark is detected in file '%s'.\n",bom->name,name);
         return NULL;
     }
     fclose(infile);

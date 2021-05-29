@@ -190,7 +190,6 @@ struct global_help {
     {"test non-null","test if top machine is not the empty language","Short form:tnn\n" },
     {"test null","test if top machine is the empty language (∅)","Short form: tnu\n" },
     {"test sequential","tests if top machine is sequential","Short form: tseq\n"},
-    {"test star-free","test if top FSM is star-free","Short form: tsf\n"},
     {"turn stack","turns stack upside down","" },
     {"twosided flag-diacritics","changes flags to always be identity pairs","Short form: tfd" },
     {"undefine <name>","remove <name> from defined networks","See define\n"},
@@ -852,21 +851,26 @@ void iface_print_shortest_string() {
             word = apply_words(ah);
             if (word != NULL) printf("%s\n",word);
 	    apply_clear(ah);
+            fsm_destroy(Result);
         } else {
             onel = fsm_lower(fsm_copy(one));
             oneu = fsm_upper(one);
             ResultU = fsm_minimize(fsm_minus(fsm_copy(oneu),fsm_concat(fsm_kleene_plus(fsm_identity()),fsm_lower(fsm_compose(fsm_lower(fsm_compose(fsm_copy(oneu),fsm_kleene_star(fsm_cross_product(fsm_identity(),fsm_symbol("@TMP@"))))),fsm_kleene_star(fsm_cross_product(fsm_symbol("@TMP@"),fsm_identity())))))));
             ResultL = fsm_minimize(fsm_minus(fsm_copy(onel),fsm_concat(fsm_kleene_plus(fsm_identity()),fsm_lower(fsm_compose(fsm_lower(fsm_compose(fsm_copy(onel),fsm_kleene_star(fsm_cross_product(fsm_identity(),fsm_symbol("@TMP@"))))),fsm_kleene_star(fsm_cross_product(fsm_symbol("@TMP@"),fsm_identity())))))));
+            fsm_destroy(oneu);
+            fsm_destroy(onel);
             ah = apply_init(ResultU);
             word = apply_words(ah);
             if (word == NULL) word = "";
             printf("Upper: %s\n",word);
 	    apply_clear(ah);
+            fsm_destroy(ResultU);
             ah = apply_init(ResultL);
             word = apply_words(ah);
             if (word == NULL) word = "";
             printf("Lower: %s\n",word);
 	    apply_clear(ah);
+            fsm_destroy(ResultL);
         }
     }
 }
@@ -1158,12 +1162,12 @@ void iface_test_identity() {
 
 void iface_test_nonnull() {
     if (iface_stack_check(1))
-        iface_print_bool(!fsm_isempty(fsm_copy(stack_find_top()->fsm)));
+        iface_print_bool(!fsm_isempty(stack_find_top()->fsm));
 }
 
 void iface_test_null() {
     if (iface_stack_check(1))
-        iface_print_bool(fsm_isempty(fsm_copy(stack_find_top()->fsm)));
+        iface_print_bool(fsm_isempty(stack_find_top()->fsm));
 }
 
 void iface_test_unambiguous() {
@@ -1172,8 +1176,11 @@ void iface_test_unambiguous() {
 }
 
 void iface_test_lower_universal() {
-    if (iface_stack_check(1))
-        iface_print_bool(fsm_isempty(fsm_complement(fsm_lower(fsm_copy(stack_find_top()->fsm)))));
+    if (iface_stack_check(1)) {
+        struct fsm *tmp = fsm_complement(fsm_lower(fsm_copy(stack_find_top()->fsm)));
+        iface_print_bool(fsm_isempty(tmp));
+        fsm_destroy(tmp);
+    }
 }
 
 void iface_test_sequential() {
@@ -1182,8 +1189,11 @@ void iface_test_sequential() {
 }
 
 void iface_test_upper_universal() {
-    if (iface_stack_check(1))
-        iface_print_bool(fsm_isempty(fsm_complement(fsm_upper(fsm_copy(stack_find_top()->fsm)))));
+    if (iface_stack_check(1)) {
+        struct fsm *tmp = fsm_complement(fsm_upper(fsm_copy(stack_find_top()->fsm)));
+        iface_print_bool(fsm_isempty(tmp));
+        fsm_destroy(tmp);
+    }
 }
 
 void iface_turn() {
