@@ -17,7 +17,7 @@
 #define FLOOKUP_PORT 8888
 #define DIR_UP 1
 #define UDP_MAX 65535
-#define LINE_MAX_LENGTH 10000
+#define LINE_MAX_LENGTH 6000
 
 
 char *usagestring = "Usage: FomaServer [-l med_limit] [-c cutoff] [-P port number] <analyzer.bin> <chain.bin> <spellcheckUnificado.bin>\n";
